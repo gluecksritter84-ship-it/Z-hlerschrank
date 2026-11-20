@@ -148,6 +148,11 @@
                 </div>
                 <p class="text-sm text-slate-700 bg-slate-50 p-3 rounded-lg" id="masseBegruendung"></p>
 
+                <div id="apzBox" class="p-4 rounded-lg border text-sm">
+                    <div class="font-bold mb-1" id="apzTitle"></div>
+                    <p id="apzText"></p>
+                </div>
+
                 <h4 class="font-bold text-slate-900 pt-2">🔧 Empfohlene Maßnahmen für den Elektrofachbetrieb:</h4>
                 <ol id="massnahmenList" class="list-decimal pl-5 space-y-1.5 text-sm text-slate-700"></ol>
             </div>
@@ -155,8 +160,15 @@
     </div>
 
     <script>
-        // API Key aus LocalStorage laden
+        // API Key aus URL-Parameter (?key=...) oder LocalStorage laden
         window.addEventListener('DOMContentLoaded', () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const urlKey = urlParams.get('key');
+            if (urlKey) {
+                localStorage.setItem('gemini_api_key', urlKey.trim());
+                // Key aus der Adresszeile entfernen, damit er nicht im Verlauf/Referrer sichtbar bleibt
+                window.history.replaceState({}, document.title, window.location.pathname);
+            }
             const savedKey = localStorage.getItem('gemini_api_key');
             if (savedKey) document.getElementById('apiKeyInput').value = savedKey;
         });
@@ -364,6 +376,8 @@ Antworte AUSSCHLIESSLICH als valides JSON-Objekt mit genau dieser Struktur:
   "waermepumpe_geeignet": boolean,
   "wallbox_geeignet": boolean,
   "paragraph_14a_enwg_ready": boolean,
+  "apz_status": "Vorhanden" | "Fehlt – Nachrüstung im Schrank möglich" | "Fehlt – Kein Platz im Schrank (externes APZ-Gehäuse oder Schranktausch nötig)" | "Nicht zwingend erforderlich",
+  "apz_begruendung": "Konkrete Bewertung des APZ-Felds (mind. 300 mm Höhe, Spannungsversorgung, Datenleitung RJ45) und ob im vorhandenen Schrank noch genügend Platz zur Nachrüstung ist",
   "vorhandene_komponenten": ["Liste der auf dem Foto erkannten Bauteile"],
   "fehlende_komponenten": ["Liste der fehlenden Bauteile für PV, Speicher, Wallbox, WP und VDE-AR-N 4100"],
   "zaehlerplatz_typ": "z.B. 3-Punkt, eHZ, oder alte Zählertafel",
@@ -378,7 +392,12 @@ Antworte AUSSCHLIESSLICH als valides JSON-Objekt mit genau dieser Struktur:
 Prüfkriterien:
 1. Bauform/Höhe: Offene Zählertafeln oder alte niedrige Schränke (< 950 mm Bauhöhe) sind für PV/Speicher/Wallbox/WP nicht mehr zulässig (heute Standard: 1100 mm oder 1400 mm nach VDE-AR-N 4100).
 2. Unterer Anschlussraum (UAR) & Dauerstrom: SLS-Schalter und Überspannungsschutz (ÜSS Typ 1+2) sind Pflicht. Bei gleichzeitiger Nutzung von PV, Speicher (AC-Ladeleistung > 4,2 kW), Wallbox (11/22 kW) und Wärmepumpe liegt Dauerbetrieb vor -> zwingend 16 mm² Zählerverdrahtung (max. 50 A SLS) erforderlich! Bei 22 kW Wallbox zusätzlich Genehmigungspflicht und Auslegung auf 32 A Dauerstrom prüfen.
-3. APZ-Feld & RfZ (§ 14a EnWG): Sobald mindestens eine steuerbare Verbrauchseinrichtung > 4,2 kW installiert wird (Wärmepumpe, Wallbox 11/22 kW oder Batteriespeicher mit Netzbezug > 4,2 kW), sind APZ-Feld (300 mm hoch) und RfZ für Smart Meter Gateway + Steuerbox Pflicht.
+3. APZ-Feld & RfZ (§ 14a EnWG) – detaillierte Platzprüfung:
+   - Sobald mindestens eine steuerbare Verbrauchseinrichtung > 4,2 kW installiert wird (Wärmepumpe, Wallbox 11/22 kW oder Batteriespeicher mit Netzbezug > 4,2 kW), sind ein plombierbares APZ-Feld (mind. 300 mm Bauhöhe, Spannungsversorgung + Datenleitung) und ein RfZ (Raum für Zusatzanwendungen, 150 mm) für Smart Meter Gateway + Steuerbox Pflicht.
+   - Unterscheide exakt zwischen diesen 3 Fällen:
+     a) "Vorhanden": Ein eigenes plombierbares APZ-Feld (unten/seitlich im Verteilerfeld) ist auf dem Foto klar erkennbar.
+     b) "Fehlt – Nachrüstung im Schrank möglich": Kein APZ-Feld eingebaut, ABER der Schrank hat die moderne Bauhöhe (1100 mm oder 1400 mm) und im Verteilerfeld sind unten mindestens 300 mm Bauhöhe (2 Hutschienenreihen / 12 TE) komplett frei oder freiräumbar, sodass ein APZ-Nachrüstsatz (z.B. Hager/ABB/Striebel) eingebaut werden kann.
+     c) "Fehlt – Kein Platz im Schrank (externes APZ-Gehäuse oder Schranktausch nötig)": Kein APZ-Feld vorhanden UND der Schrank ist zu niedrig (z.B. 800/950 mm Bauhöhe), ein-feldrig ohne freies Verteilerfeld oder das Verteilerfeld ist bereits voll mit Sicherungen/FI belegt. Weise in den Maßnahmen darauf hin, dass entweder ein separates externes APZ-Leergehäuse neben dem Schrank (nur falls nach TAB des Netzbetreibers zulässig!) montiert oder der Zählerschrank erneuert werden muss.
 4. Platzbedarf im Verteilerfeld / OAR: Im oberen Anschlussraum (OAR) sind max. 3 Wechselstromkreise erlaubt! Zusätzliche FI/LS-Schalter für Wallbox, PV-Wechselrichter, Batteriespeicher (EnFluRi-Sensor / Smart Meter, ca. 3-4 TE) und Wärmepumpe brauchen ausreichend freie Teilungseinheiten (TE) im Verteilerfeld oder eine Unterverteilung.
 5. Zählerplätze: Bei Kaskadenschaltung/WP-Tarif werden 2 Zählerplätze benötigt, sonst 1 Zweirichtungszähler.
 6. Maße schätzen anhand 1 TE = 18 mm Breite, Standard-Zählerfeldbreite = 250 mm.`;
@@ -526,7 +545,7 @@ Prüfkriterien:
                     <span class="bg-black/25 px-3 py-1 rounded-full">PV & Speicher: ${a.pv_speicher_geeignet ? '✅ Geeignet' : '⚠️ Anpassung nötig'}</span>
                     <span class="bg-black/25 px-3 py-1 rounded-full">Wallbox (${wallboxKw > 0 ? wallboxKw + ' kW' : 'keine'}): ${wallboxKw === 0 ? '➖ Nicht geplant' : (a.wallbox_geeignet ? '✅ Geeignet' : '⚠️ Anpassung nötig')}</span>
                     <span class="bg-black/25 px-3 py-1 rounded-full">Wärmepumpe: ${!waermepumpe ? '➖ Nicht geplant' : (a.waermepumpe_geeignet ? '✅ Geeignet' : '⚠️ Anpassung nötig')}</span>
-                    <span class="bg-black/25 px-3 py-1 rounded-full">§ 14a EnWG / APZ: ${a.paragraph_14a_enwg_ready ? '✅ Vorhanden' : '❌ Fehlt'}</span>
+                    <span class="bg-black/25 px-3 py-1 rounded-full">APZ-Feld (§ 14a): ${a.apz_status === 'Vorhanden' ? '✅ Vorhanden' : (a.apz_status && a.apz_status.includes('möglich') ? '⚠️ Fehlt (Platz vorhanden)' : '❌ Fehlt (Kein Platz)')}</span>
                     <span class="bg-black/25 px-3 py-1 rounded-full">Maße: ${a.masse_ausreichend ? '✅ Ausreichend' : '❌ Zu klein'}</span>
                 `;
 
@@ -549,6 +568,20 @@ Prüfkriterien:
                 document.getElementById('zaehlerTyp').textContent = a.zaehlerplatz_typ;
                 document.getElementById('freieTe').textContent = (a.freie_teilungseinheiten_ca ?? '?') + ' TE';
                 document.getElementById('masseBegruendung').textContent = a.begruendung_masse;
+
+                const apzBox = document.getElementById('apzBox');
+                const apzStatus = a.apz_status || (a.paragraph_14a_enwg_ready ? 'Vorhanden' : 'Fehlt');
+                if (apzStatus === 'Vorhanden') {
+                    apzBox.className = 'p-4 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-900 text-sm';
+                    document.getElementById('apzTitle').textContent = '✅ APZ-Feld & RfZ (§ 14a EnWG): Vorhanden';
+                } else if (apzStatus.includes('möglich')) {
+                    apzBox.className = 'p-4 rounded-lg border border-amber-200 bg-amber-50 text-amber-900 text-sm';
+                    document.getElementById('apzTitle').textContent = '⚠️ APZ-Feld (§ 14a EnWG): ' + apzStatus;
+                } else {
+                    apzBox.className = 'p-4 rounded-lg border border-rose-200 bg-rose-50 text-rose-900 text-sm';
+                    document.getElementById('apzTitle').textContent = '❌ APZ-Feld (§ 14a EnWG): ' + apzStatus;
+                }
+                document.getElementById('apzText').textContent = a.apz_begruendung || '';
 
                 document.getElementById('results').classList.remove('hidden');
                 document.getElementById('results').scrollIntoView({ behavior: 'smooth' });
